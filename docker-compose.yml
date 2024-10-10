@@ -1,0 +1,72 @@
+version: '3.8'
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      - MYSQL_DATABASE=bank_service_db
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=password
+      - MYSQL_ROOT_PASSWORD=password
+    ports:
+      - 3306:3306
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - springboot-mysql-network
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  account-service:
+    build: ./account-service
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/bank_service_db
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=password
+    depends_on:
+      - db
+    networks:
+      - springboot-mysql-network
+
+  transaction-service:
+    build: ./transaction-service
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/bank_service_db
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=password
+    depends_on:
+      - db
+    networks:
+      - springboot-mysql-network
+
+  service-registry:
+    build: ./service-registry
+    ports:
+      - 8761:8761
+    networks:
+      - springboot-mysql-network
+
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - 8080:8080
+    networks:
+      - springboot-mysql-network
+
+  config-server:
+    build: ./config-server
+    environment:
+      - SPRING_PROFILES_ACTIVE=native
+    ports:
+      - 8888:8888
+    networks:
+      - springboot-mysql-network
+
+networks:
+  springboot-mysql-network:
+    name: springboot-mysql-network
+
+volumes:
+  mysql-data:
