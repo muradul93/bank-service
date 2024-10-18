@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: transaction-service
+
+  config:
+    import: optional:configserver:http://config-server:8888
+
+  datasource:
+    url: jdbc:mysql://mysql:3306/bank_service_db  # Use Docker service name for MySQL, not localhost
+    username: appuser
+    password: apppass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate.dialect: org.hibernate.dialect.MySQLDialect
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://service-registry:8761/eureka/
+
+management:
+  zipkin:
+    tracing:
+      endpoint: http://zipkin_server:9411/api/v2/spans

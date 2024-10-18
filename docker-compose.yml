@@ -1,72 +1,121 @@
 version: '3.8'
+
 services:
-  db:
-    image: mysql:8.0
+  mysql:
+    container_name: mysql_server
+    image: mysql:8.2.0
     environment:
-      - MYSQL_DATABASE=bank_service_db
-      - MYSQL_USER=root
-      - MYSQL_PASSWORD=password
-      - MYSQL_ROOT_PASSWORD=password
-    ports:
-      - 3306:3306
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: bank_service_db
+      MYSQL_USER: appuser          # Create appuser
+      MYSQL_PASSWORD: apppass      # Set password for appuser
     volumes:
-      - mysql-data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3307:3306"
     networks:
-      - springboot-mysql-network
+      - spring-ms
+    restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpass"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  account-service:
-    build: ./account-service
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/bank_service_db
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=password
-    depends_on:
-      - db
-    networks:
-      - springboot-mysql-network
-
-  transaction-service:
-    build: ./transaction-service
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/bank_service_db
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=password
-    depends_on:
-      - db
-    networks:
-      - springboot-mysql-network
-
-  service-registry:
-    build: ./service-registry
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: rootpass  # Should match the MYSQL_ROOT_PASSWORD
     ports:
-      - 8761:8761
+      - "8071:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
     networks:
-      - springboot-mysql-network
+      - spring-ms
 
-  api-gateway:
-    build: ./api-gateway
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin_server
     ports:
-      - 8080:8080
+      - "9411:9411"
     networks:
-      - springboot-mysql-network
+      - spring-ms
 
   config-server:
-    build: ./config-server
-    environment:
-      - SPRING_PROFILES_ACTIVE=native
+    image: config-server:latest
+    build:
+      context: ./config-server
     ports:
-      - 8888:8888
+      - "8888:8888"
     networks:
-      - springboot-mysql-network
+      - spring-ms
+    restart: unless-stopped
+
+  service-registry:
+    image: service-registry:latest
+    build:
+      context: ./service-registry
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - spring-ms
+    depends_on:
+      - config-server
+    restart: unless-stopped
+
+  api-gateway:
+    image: api-gateway:latest
+    build:
+      context: ./api-gateway
+    ports:
+      - "8222:8222"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - spring-ms
+    depends_on:
+      - service-registry
+      - config-server
+    restart: unless-stopped
+
+  account-service:
+    image: account-service:latest
+    build:
+      context: ./account-service
+    ports:
+      - "8091:8091"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - spring-ms
+    depends_on:
+      - mysql
+      - service-registry
+      - config-server
+
+  transaction-service:
+    image: transaction-service:latest
+    build:
+      context: ./transaction-service
+    ports:
+      - "8092:8092"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - spring-ms
+    depends_on:
+      - mysql
+      - service-registry
+      - config-server
 
 networks:
-  springboot-mysql-network:
-    name: springboot-mysql-network
+  spring-ms:
+    driver: bridge
 
 volumes:
-  mysql-data:
+  mysql_data:

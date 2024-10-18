@@ -49,7 +49,7 @@ INSERT INTO customer_account (account_number, full_name, date_of_birth, account_
 3. Update the `application.properties` file located in `src/main/resources` with your database credentials:
 
 ```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/transaction_db
+spring.datasource.url=jdbc:mysql://localhost:3307/transaction_db
 spring.datasource.username=your_username
 spring.datasource.password=your_password
 spring.jpa.hibernate.ddl-auto=update

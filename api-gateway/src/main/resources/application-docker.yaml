@@ -1,13 +1,10 @@
 server:
   port: 8222
 
-
 management:
   tracing:
     sampling:
       probability: 1.0
-
-
 
 
 spring:
@@ -29,3 +26,14 @@ spring:
           uri: lb:http://transaction-service
           predicates:
             - Path=/transaction/**
+
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://service-registry:8761/eureka/
+
+
+
+
+
